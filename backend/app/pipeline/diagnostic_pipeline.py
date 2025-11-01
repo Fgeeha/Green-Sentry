@@ -1,6 +1,6 @@
-from models.cv_model import PlantDiseaseClassifier
-from models.reasoning_agent import DiseaseReasoningAgent
-from utils.image_processor import ImageProcessor
+from app.models.cv_model import PlantDiseaseClassifier
+from app.models.reasoning_agent import DiseaseReasoningAgent
+from app.utils.image_processor import ImageProcessor
 from typing import Dict, Optional
 import numpy as np
 
