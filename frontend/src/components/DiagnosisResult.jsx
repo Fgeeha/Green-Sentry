@@ -1,37 +1,122 @@
 import React from 'react'
-import {
-  CheckCircle,
-  AlertTriangle,
-  TrendingUp,
-  Pill,
-  Shield,
-  MapPin,
-  Clock,
-  Target,
-} from 'lucide-react'
+import { CheckCircle, AlertTriangle, Clock, Target, Brain } from 'lucide-react'
+
+const hasContent = (value) => {
+  if (value === null || value === undefined) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  if (typeof value === 'number' || typeof value === 'boolean') return true
+  if (Array.isArray(value)) return value.some((item) => hasContent(item))
+  if (typeof value === 'object')
+    return Object.values(value).some((item) => hasContent(item))
+  return false
+}
+
+const toDisplayLines = (value) => {
+  if (!hasContent(value)) return []
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+    return [String(value)]
+  if (Array.isArray(value))
+    return value.flatMap((item) => toDisplayLines(item))
+  if (typeof value === 'object') {
+    return Object.entries(value).map(([key, val]) => {
+      const nested = toDisplayLines(val)
+      if (nested.length === 0) return key
+      if (nested.length === 1) return `${key}: ${nested[0]}`
+      return `${key}: ${nested.join(', ')}`
+    })
+  }
+  return []
+}
+
+const formatMultiline = (value) => toDisplayLines(value).join('\n')
+
+const renderList = (value) => {
+  const items = toDisplayLines(value)
+  if (items.length === 0) return null
+  return (
+    <ul className="list-disc list-inside text-gray-600">
+      {items.map((item, idx) => (
+        <li key={idx}>{item}</li>
+      ))}
+    </ul>
+  )
+}
+
+const getStageColor = (stage) => {
+  const colors = {
+    начальная: 'text-green-600 bg-green-50',
+    средняя: 'text-yellow-600 bg-yellow-50',
+    критическая: 'text-red-600 bg-red-50',
+  }
+  return colors[stage?.toLowerCase()] || 'text-gray-600 bg-gray-50'
+}
+
+const getRiskColor = (risk) => {
+  const colors = {
+    низкий: 'text-green-600',
+    средний: 'text-yellow-600',
+    высокий: 'text-red-600',
+  }
+  return colors[risk?.toLowerCase()] || 'text-gray-600'
+}
 
 const DiagnosisResult = ({ result }) => {
   if (!result) return null
 
   const { cv_result, reasoning_analysis, pipeline_version } = result
-  const reasoning = reasoning_analysis?.reasoning_analysis || {}
+  const reasoning = reasoning_analysis?.reasoning_analysis
+  const structuredReasoning =
+    reasoning && typeof reasoning === 'object' && !Array.isArray(reasoning) ? reasoning : null
+  const structuredKeys = structuredReasoning
+    ? Object.keys(structuredReasoning).filter((key) =>
+        !['parsed', 'raw_response', 'error'].includes(key)
+      )
+    : []
+  const reasoningDataAvailable =
+    reasoning_analysis?.success &&
+    structuredReasoning &&
+    structuredReasoning.parsed !== false &&
+    structuredKeys.length > 0
 
-  const getStageColor = (stage) => {
-    const colors = {
-      начальная: 'text-green-600 bg-green-50',
-      средняя: 'text-yellow-600 bg-yellow-50',
-      критическая: 'text-red-600 bg-red-50',
-    }
-    return colors[stage?.toLowerCase()] || 'text-gray-600 bg-gray-50'
-  }
+  const stageValue = structuredReasoning?.disease_stage
+  const stageText =
+    typeof stageValue === 'string'
+      ? stageValue
+      : stageValue?.stage || stageValue?.name || stageValue?.стадия || formatMultiline(stageValue)
+  const stageColorKey =
+    typeof stageValue === 'string'
+      ? stageValue
+      : stageValue?.stage || stageValue?.name || stageValue?.стадия || ''
 
-  const getRiskColor = (risk) => {
-    const colors = {
-      низкий: 'text-green-600',
-      средний: 'text-yellow-600',
-      высокий: 'text-red-600',
-    }
-    return colors[risk?.toLowerCase()] || 'text-gray-600'
+  const confirmationText = formatMultiline(structuredReasoning?.diagnosis_confirmation)
+
+  const spreadForecastValue = structuredReasoning?.spread_forecast
+  const spreadForecastText =
+    typeof spreadForecastValue === 'string'
+      ? spreadForecastValue.toUpperCase()
+      : formatMultiline(spreadForecastValue)
+
+  const successProbabilityValue = structuredReasoning?.success_probability
+  const successProbabilityColorSource =
+    typeof successProbabilityValue === 'string'
+      ? successProbabilityValue
+      : successProbabilityValue?.level ||
+        successProbabilityValue?.category ||
+        successProbabilityValue?.уровень ||
+        successProbabilityValue?.риск ||
+        null
+  const successProbabilityClass = successProbabilityColorSource
+    ? getRiskColor(successProbabilityColorSource)
+    : 'text-gray-600'
+  const successProbabilityText =
+    typeof successProbabilityValue === 'number'
+      ? `${successProbabilityValue}%`
+      : formatMultiline(successProbabilityValue)
+
+  const formatConfidence = (confidence) => {
+    if (typeof confidence === 'number') return `${(confidence * 100).toFixed(1)}%`
+    if (typeof confidence === 'string') return confidence
+    return '—'
   }
 
   return (
@@ -53,7 +138,7 @@ const DiagnosisResult = ({ result }) => {
           </p>
           <p>
             <span className="font-medium">Уверенность:</span>{' '}
-            {(cv_result?.confidence * 100).toFixed(1)}%
+            {formatConfidence(cv_result?.confidence)}%
           </p>
         </div>
 
@@ -72,7 +157,7 @@ const DiagnosisResult = ({ result }) => {
       </section>
 
       {/* --- Reasoning Analysis --- */}
-      {reasoning_analysis?.success && reasoning.parsed && (
+      {reasoningDataAvailable && (
         <section className="p-4 border rounded-lg bg-white shadow-sm space-y-4">
           {/* Disease Stage */}
           <div>
@@ -82,109 +167,128 @@ const DiagnosisResult = ({ result }) => {
             </h4>
             <span
               className={`inline-block px-3 py-1 rounded-md text-sm font-medium ${getStageColor(
-                reasoning.disease_stage
+                 stageColorKey
               )}`}
             >
-              {reasoning.disease_stage?.toUpperCase() || 'НЕ ОПРЕДЕЛЕНА'}
+              {stageText ? stageText.toString().toUpperCase() : 'НЕ ОПРЕДЕЛЕНА'}
             </span>
-            {reasoning.diagnosis_confirmation && (
-              <p className="mt-1 text-gray-500">
-                {reasoning.diagnosis_confirmation}
-              </p>
+            {hasContent(structuredReasoning?.diagnosis_confirmation) && (
+              <p className="mt-1 text-gray-500 whitespace-pre-line">{confirmationText}</p>
             )}
           </div>
 
           {/* Causes */}
-          {reasoning.causes?.length > 0 && (
+          {hasContent(structuredReasoning?.causes) && (
             <div>
               <h4 className="font-semibold mb-1">Причины возникновения</h4>
-              <ul className="list-disc list-inside">
-                {reasoning.causes.map((cause, idx) => (
-                  <li key={idx}>{cause}</li>
-                ))}
-              </ul>
+              {renderList(structuredReasoning.causes)}
             </div>
           )}
 
           {/* Risk Factors */}
-          {reasoning.risk_factors?.length > 0 && (
+          {hasContent(structuredReasoning?.risk_factors) && (
             <div>
               <h4 className="font-semibold mb-1">Факторы риска</h4>
-              <ul className="list-disc list-inside">
-                {reasoning.risk_factors.map((factor, idx) => (
-                  <li key={idx}>{factor}</li>
-                ))}
-              </ul>
+              {renderList(structuredReasoning.risk_factors)}
             </div>
           )}
 
           {/* Spread Forecast */}
-          {reasoning.spread_forecast && (
+          {hasContent(spreadForecastValue) && (
             <div>
               <h4 className="font-semibold mb-1">Прогноз распространения</h4>
-              <p className="text-gray-700">
-                {reasoning.spread_forecast.toUpperCase()}
-              </p>
+              <p className="text-gray-700 whitespace-pre-line">{spreadForecastText}</p>
             </div>
           )}
 
           {/* Treatment Plan */}
-          {reasoning.treatment_plan && (
+          {hasContent(structuredReasoning?.treatment_plan) && (
             <div>
               <h4 className="font-semibold mb-1">План лечения</h4>
               <p className="text-gray-700 whitespace-pre-line">
-                {reasoning.treatment_plan}
+                {formatMultiline(structuredReasoning.treatment_plan)}
               </p>
             </div>
           )}
 
           {/* Prevention */}
-          {reasoning.prevention && (
+          {hasContent(structuredReasoning?.prevention) && (
             <div>
               <h4 className="font-semibold mb-1">Профилактика</h4>
               <p className="text-gray-700 whitespace-pre-line">
-                {reasoning.prevention}
+                {formatMultiline(structuredReasoning.prevention)}
               </p>
             </div>
           )}
 
           {/* Regional Recommendations */}
-          {reasoning.regional_recommendations && (
+          {hasContent(structuredReasoning?.regional_recommendations) && (
             <div>
               <h4 className="font-semibold mb-1">
                 Региональные рекомендации
               </h4>
               <p className="text-gray-700 whitespace-pre-line">
-                {reasoning.regional_recommendations}
+                {formatMultiline(structuredReasoning.regional_recommendations)}
               </p>
             </div>
           )}
 
           {/* Timeline */}
-          {reasoning.timeline && (
+          {hasContent(structuredReasoning?.timeline) && (
             <div>
               <h4 className="font-semibold flex items-center gap-1 mb-1">
                 <Clock size={14} /> Временные рамки
               </h4>
-              <p>{reasoning.timeline}</p>
+              <p className="text-gray-700 whitespace-pre-line">
+                {formatMultiline(structuredReasoning.timeline)}
+              </p>
             </div>
           )}
 
           {/* Success Probability */}
-          {reasoning.success_probability && (
+          {hasContent(successProbabilityValue) && (
             <div>
               <h4 className="font-semibold flex items-center gap-1 mb-1">
                 <Target size={14} /> Вероятность успеха
               </h4>
-              <p
-                className={`${getRiskColor(
-                  reasoning.success_probability
-                )} font-medium`}
-              >
-                {reasoning.success_probability}%
+              <p className={`${successProbabilityClass} font-medium whitespace-pre-line`}>
+                {successProbabilityText}
               </p>
             </div>
           )}
+        </section>
+      )}
+
+      {reasoning_analysis?.success && !reasoningDataAvailable && (
+        <section className="p-4 border rounded-lg bg-white shadow-sm space-y-2">
+          <h4 className="font-semibold flex items-center gap-2 mb-1">
+            <Brain size={16} className="text-green-600" />
+            GigaChat-анализ
+          </h4>
+          <p className="text-gray-700 whitespace-pre-line">
+            {hasContent(reasoning)
+              ? formatMultiline(reasoning)
+              : 'Reasoning-агент вернул результат, но не удалось распарсить структурированные данные.'}
+          </p>
+        </section>
+      )}
+
+      {reasoning_analysis && !reasoning_analysis.success && (
+        <section className="p-4 border rounded-lg bg-white shadow-sm space-y-2">
+          <h4 className="font-semibold flex items-center gap-2 mb-1 text-red-600">
+            <AlertTriangle size={16} /> Ошибка Reasoning-анализа
+          </h4>
+          <p className="text-gray-700">
+            {reasoning_analysis.error || 'Не удалось получить ответ от reasoning-агента.'}
+          </p>
+        </section>
+      )}
+
+      {!reasoning_analysis && (
+        <section className="p-4 border rounded-lg bg-white shadow-sm">
+          <p className="text-gray-600">
+            Reasoning-анализ отключен для этого запроса. Включите переключатель «Reasoning-анализ» перед отправкой, чтобы получить расширенный ответ от GigaChat.
+          </p>
         </section>
       )}
     </div>

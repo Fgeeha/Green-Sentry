@@ -1,7 +1,4 @@
-# backend/app/utils/image_processor.py
-
-"""Image processing utilities for plant disease diagnosis"""
-
+import json
 import cv2
 from gigachat import GigaChat
 import numpy as np
