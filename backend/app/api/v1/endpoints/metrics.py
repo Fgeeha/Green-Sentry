@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-@app.get("/metrics")
+@router.get("/metrics")
 async def metrics():
+    """Expose a lightweight readiness/metrics endpoint for Prometheus."""
     return {"status": "ok"}

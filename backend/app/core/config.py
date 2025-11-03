@@ -1,5 +1,7 @@
+from typing import List, Optional, Union
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
-from typing import List, Optional
 from functools import lru_cache
 import secrets
 
@@ -23,6 +25,18 @@ class Settings(BaseSettings):
         "http://localhost",
         "http://frontend:3000"
     ]
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(
+            cls, value: Union[str, List[str]]
+    ) -> List[str]:
+        """Allow specifying CORS origins as a comma separated string."""
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        if isinstance(value, list):
+            return value
+        raise ValueError("Invalid value for BACKEND_CORS_ORIGINS")
 
     # Database
     POSTGRES_USER: str = "postgres"

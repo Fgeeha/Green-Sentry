@@ -53,12 +53,12 @@ function App() {
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Leaf size={20} /> 1. Загрузите изображение
           </h2>
-          <ImageUpload image={image} setImage={setImage} />
+          <ImageUpload selectedImage={image} onImageSelect={setImage} />
 
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Brain size={20} /> 2. Контекст выращивания
           </h2>
-          <ContextForm context={context} setContext={setContext} />
+          <ContextForm context={context} onChange={setContext} />
 
           <button
             onClick={handleDiagnose}
