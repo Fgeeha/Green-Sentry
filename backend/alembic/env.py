@@ -8,7 +8,7 @@ import sys
 # Добавляем путь к приложению
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from app.core.config import settings
+
 from app.db.base import Base
 from app.models.database import user, diagnosis, feedback
 

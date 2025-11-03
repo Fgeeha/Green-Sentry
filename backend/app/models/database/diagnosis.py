@@ -40,4 +40,4 @@ class Diagnosis(Base):
     feedback = relationship("Feedback", back_populates="diagnosis", uselist=False)
 
     def __repr__(self):
-        return f""
+        return f"<Diagnosis {self.id}: {self.disease_name}>"
