@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     GIGACHAT_API_KEY: str
     GIGACHAT_BASE_URL: str = "https://gigachat.devices.sberbank.ru/api/v1"
     GIGACHAT_TIMEOUT: int = 30
+    GIGACHAT_MODEL:str = 'GigaChat-2'
 
     # Model
     CV_MODEL_PATH: str = "data/models/plant_disease_resnet50.pth"

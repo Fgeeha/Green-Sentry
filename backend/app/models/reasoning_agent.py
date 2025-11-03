@@ -277,7 +277,9 @@ class DiseaseReasoningAgent:
 
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.GIGACHAT_API_KEY
-        self.client = GigaChat(credentials=self.api_key, verify_ssl_certs=False)
+        self.client = GigaChat(credentials=self.api_key,
+                               model=settings.GIGACHAT_MODEL,
+                               verify_ssl_certs=False)
 
     def analyze_disease(
             self,
