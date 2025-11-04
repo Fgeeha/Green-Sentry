@@ -1,11 +1,12 @@
-import json
-import cv2
-from gigachat import GigaChat
-import numpy as np
-from PIL import Image
-from pathlib import Path
-from typing import Union, Tuple, Optional
 import hashlib
+import json
+from pathlib import Path
+from typing import Optional, Tuple, Union
+
+import cv2
+import numpy as np
+from gigachat import GigaChat
+from PIL import Image
 
 from app.core.config import settings
 
@@ -272,11 +273,13 @@ class ImageProcessor:
 class DiseaseReasoningAgent:
     """Reasoning-агент на базе GigaChat для анализа заболеваний"""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: Optional[str] = None) -> None:
         self.api_key = api_key or settings.GIGACHAT_API_KEY
-        self.client = GigaChat(credentials=self.api_key,
-                               model=settings.GIGACHAT_MODEL,
-                               verify_ssl_certs=False)
+        self.client = GigaChat(
+            credentials=self.api_key,
+            model=settings.GIGACHAT_MODEL,
+            verify_ssl_certs=False,
+        )
 
     def analyze_disease(
             self,
@@ -383,12 +386,11 @@ class DiseaseReasoningAgent:
             if json_start != -1 and json_end > json_start:
                 json_str = response[json_start:json_end]
                 return json.loads(json_str)
-            else:
-                # Если JSON не найден, возвращаем текст как есть
-                return {
-                    "raw_response": response,
-                    "parsed": False
-                }
+            # Если JSON не найден, возвращаем текст как есть
+            return {
+                "raw_response": response,
+                "parsed": False
+            }
         except json.JSONDecodeError:
             return {
                 "raw_response": response,
@@ -401,102 +403,183 @@ class DiseaseReasoningAgent:
         if not analysis.get("success"):
             return f"❌ Ошибка анализа: {analysis.get('error', 'Unknown error')}"
 
-        cv = analysis["cv_diagnosis"]
-        reasoning = analysis["reasoning_analysis"]
-        metadata = analysis["metadata"]
+        cv = analysis.get("cv_diagnosis", {})
+        reasoning = analysis.get("reasoning_analysis", {})
+        metadata = analysis.get("metadata", {})
 
-        report = f"""
-╔══════════════════════════════════════════════════════════════╗
-║          ОТЧЕТ О ДИАГНОСТИКЕ ЗАБОЛЕВАНИЯ РАСТЕНИЯ            ║
-╚══════════════════════════════════════════════════════════════╝
+        diagnosis = cv.get("disease_name", "Неизвестное заболевание")
+        confidence = cv.get("confidence")
+        top_predictions = cv.get("top3_predictions") or []
 
-📊 РЕЗУЛЬТАТЫ КОМПЬЮТЕРНОГО ЗРЕНИЯ
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔍 Диагноз: Мучнистая роса томатов
-📈 Уверенность модели: 87.3%
+        alt_diagnoses = self._format_alternative_diagnoses(top_predictions)
 
-Альтернативные диагнозы:
-  1. Септориоз листьев - 8.2%
-  2. Альтернариоз томатов - 3.1%
+        report_lines = [
+            "╔══════════════════════════════════════════════════════════════╗",
+            "║          ОТЧЕТ О ДИАГНОСТИКЕ ЗАБОЛЕВАНИЯ РАСТЕНИЯ            ║",
+            "╚══════════════════════════════════════════════════════════════╝",
+            "",
+            "📊 РЕЗУЛЬТАТЫ КОМПЬЮТЕРНОГО ЗРЕНИЯ",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"🔍 Диагноз: {diagnosis}",
+        ]
 
-🧠 REASONING-АНАЛИЗ (GigaChat)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Подтверждение диагноза:
-Диагноз мучнистой росы томатов подтвержден с высокой вероятностью.
-Характерные признаки: белый мучнистый налет на листьях, преимущественно
-на верхней стороне. Учитывая климат Москвы и текущий сезон, это типичное
-заболевание для данного региона.
+        if confidence is not None:
+            report_lines.append(f"📈 Уверенность модели: {confidence * 100:.1f}%")
 
-📊 Стадия заболевания: СРЕДНЯЯ
+        report_lines.append("")
+        report_lines.append("Альтернативные диагнозы:")
+        report_lines.extend(alt_diagnoses or ["  • Недоступны"])
 
-🔬 Причины возникновения:
-  • Повышенная влажность воздуха (>70%) при умеренной температуре
-  • Недостаточная вентиляция в теплице
-  • Загущенные посадки
-  • Резкие перепады дневной и ночной температуры
-  • Избыточное азотное питание
+        if not reasoning.get("parsed", True) and reasoning.get("raw_response"):
+            report_lines.extend(
+                [
+                    "",
+                    "⚠️ Не удалось распарсить структурированный ответ модели.",
+                    "Исходный текст:",
+                    f"  {reasoning['raw_response']}",
+                    "",
+                ]
+            )
 
-⚠️ Факторы риска:
-  • Умеренно-континентальный климат Москвы способствует развитию
-  • Прохладные ночи в сочетании с теплыми днями
-  • Высокая влажность воздуха в летний период
-  • Закрытый грунт без проветривания
+        report_lines.extend(
+            [
+                "",
+                "🧠 REASONING-АНАЛИЗ (GigaChat)",
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                self._format_key_value(
+                    "✅ Подтверждение диагноза", reasoning.get("diagnosis_confirmation")
+                ),
+                self._format_key_value(
+                    "📊 Стадия заболевания", reasoning.get("disease_stage")
+                ),
+                "",
+                "🔬 Причины возникновения:",
+            ]
+        )
 
-📈 Прогноз распространения: ВЫСОКИЙ
+        report_lines.extend(
+            self._format_list(reasoning.get("causes"))
+        )
 
-💊 ПЛАН ЛЕЧЕНИЯ
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ЭТАП 1 (Дни 1-3): Механическая обработка
-  • Удалить сильно пораженные листья
-  • Проредить загущенные участки
-  • Обеспечить проветривание теплицы
+        report_lines.extend(
+            [
+                "",
+                "⚠️ Факторы риска:",
+            ]
+        )
+        report_lines.extend(
+            self._format_list(reasoning.get("risk_factors"))
+        )
 
-ЭТАП 2 (Дни 3-5): Химическая обработка
-  • Препарат: Топаз (д.в. пенконазол), 2 мл на 10 л воды
-  • Опрыскивание утром или вечером
-  • Расход: 1 л раствора на 10 м²
-  • Повторная обработка через 10-14 дней
+        report_lines.extend(
+            [
+                "",
+                self._format_key_value(
+                    "📈 Прогноз распространения", reasoning.get("spread_forecast")
+                ),
+                "",
+                "💊 ПЛАН ЛЕЧЕНИЯ",
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            ]
+        )
+        report_lines.extend(
+            self._format_list(reasoning.get("treatment_plan"), indent="  • ")
+        )
 
-ЭТАП 3 (Альтернатива/Профилактика):
-  • Биопрепарат: Фитоспорин-М, 5 г на 10 л воды
-  • Опрыскивание каждые 7 дней
-  • Можно сочетать с Топазом
+        report_lines.extend(
+            [
+                "",
+                "🛡️ ПРОФИЛАКТИКА",
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            ]
+        )
+        report_lines.extend(
+            self._format_list(reasoning.get("prevention"))
+        )
 
-ВАЖНО: Чередовать препараты для избежания резистентности!
+        regional_recs = reasoning.get("regional_recommendations")
+        region_name = metadata.get("region")
+        if isinstance(regional_recs, dict):
+            region_name = regional_recs.get("region", region_name)
 
-🛡️ ПРОФИЛАКТИКА
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  • Соблюдать схему посадки: 40х60 см между растениями
-  • Регулярное проветривание теплицы (утро/вечер)
-  • Поддерживать влажность воздуха ниже 70%
-  • Сбалансированное питание (снизить азот, увеличить калий)
-  • Профилактические опрыскивания раз в 2 недели
-  • Севооборот: не высаживать томаты на том же месте 3 года
+        report_lines.extend(
+            [
+                "",
+                f"🌍 РЕГИОНАЛЬНЫЕ РЕКОМЕНДАЦИИ ({region_name or 'Регион не указан'})",
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            ]
+        )
 
-🌍 РЕГИОНАЛЬНЫЕ РЕКОМЕНДАЦИИ (Москва)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Для Московского региона критичны следующие факторы:
+        if isinstance(regional_recs, dict):
+            for category, recs in regional_recs.items():
+                if category == "region":
+                    continue
+                report_lines.append(f"{category.upper()}:")
+                report_lines.extend(self._format_list(recs))
+                report_lines.append("")
+            if report_lines[-1] == "":
+                report_lines.pop()
+        else:
+            report_lines.extend(
+                self._format_list(regional_recs) or ["  • Рекомендации отсутствуют"]
+            )
 
-1. КЛИМАТИЧЕСКИЕ:
-   - Июль-август: пик развития мучнистой росы
-   - Утренние туманы значительно повышают риск
-   - В теплицах обязательна автоматическая вентиляция
+        report_lines.extend(
+            [
+                "",
+                self._format_key_value("⏱️ Временные рамки", reasoning.get("timeline")),
+                self._format_key_value(
+                    "🎯 Вероятность успеха",
+                    self._format_success_probability(reasoning.get("success_probability")),
+                ),
+                "",
+                "╔══════════════════════════════════════════════════════════════╗",
+                "║                    КОНЕЦ ОТЧЕТА                              ║",
+                "╚══════════════════════════════════════════════════════════════╝",
+            ]
+        )
 
-2. АГРОТЕХНИЧЕСКИЕ:
-   - Использовать устойчивые сорта: Благовест, Верлиока F1
-   - В открытом грунте: мульчирование для снижения влажности
-   - Капельный полив вместо дождевания
+        return "\n".join(filter(None, report_lines))
 
-3. СЕЗОННЫЕ:
-   - Профилактика начинается с мая
-   - Осенняя обработка теплицы медным купоросом
-   - Весенняя дезинфекция конструкций
+    @staticmethod
+    def _format_alternative_diagnoses(predictions: list) -> list:
+        if not predictions or len(predictions) <= 1:
+            return []
 
-⏱️ Временные рамки: 14-21 день при соблюдении плана лечения
-🎯 Вероятность успеха: 85-90%
+        formatted = []
+        for idx, prediction in enumerate(predictions[1:], start=1):
+            name = prediction.get("name_ru") or prediction.get("name") or "Неизвестно"
+            confidence = prediction.get("confidence")
+            if confidence is not None:
+                formatted.append(f"  {idx}. {name} - {confidence * 100:.1f}%")
+            else:
+                formatted.append(f"  {idx}. {name}")
+        return formatted
 
-╔══════════════════════════════════════════════════════════════╗
-║                    КОНЕЦ ОТЧЕТА                              ║
-╚══════════════════════════════════════════════════════════════╝
-        """
-        return report
+    @staticmethod
+    def _format_list(values, indent: str = "  • ") -> list:
+        if not values:
+            return [f"{indent}Нет данных"]
+        if isinstance(values, str):
+            return [f"{indent}{values}"]
+        formatted = []
+        for item in values:
+            if isinstance(item, dict):
+                formatted.append(f"{indent}{json.dumps(item, ensure_ascii=False)}")
+            else:
+                formatted.append(f"{indent}{item}")
+        return formatted
+
+    @staticmethod
+    def _format_key_value(title: str, value) -> str:
+        if value in (None, ""):
+            return f"{title}: Нет данных"
+        return f"{title}: {value}"
+
+    @staticmethod
+    def _format_success_probability(value) -> str:
+        if value in (None, ""):
+            return "Нет данных"
+        if isinstance(value, (int, float)):
+            return f"{value:.0f}%"
+        return str(value)
