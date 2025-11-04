@@ -1,5 +1,5 @@
 [project]
-name = "plant-disease-reasoning"
+name = "GreenSentry"
 version = "0.1.0"
 description = "Plant disease diagnosis with reasoning component"
 authors = [

@@ -43,7 +43,7 @@ function App() {
     <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col">
       {/* Header */}
       <header className="bg-green-600 text-white py-4 text-center text-xl font-semibold shadow-md">
-        🌿 Plant Disease Reasoning — Интеллектуальная диагностика (CV + GigaChat)
+        🌿 Green Sentry — Интеллектуальная диагностика (CV + GigaChat)
       </header>
 
       {/* Main Content */}
@@ -89,7 +89,7 @@ function App() {
 
       {/* Footer */}
       <footer className="text-center text-sm text-gray-500 py-4 border-t">
-        © {new Date().getFullYear()} Plant Disease Reasoning Pipeline
+        © {new Date().getFullYear()} Green Sentry Pipeline
       </footer>
     </div>
   )

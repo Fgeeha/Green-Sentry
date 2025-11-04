@@ -48,7 +48,7 @@ app.include_router(
 @app.get("/")
 async def root():
     return {
-        "message": "Plant Disease Reasoning API",
+        "message": "Green Sentry API",
         "version": settings.VERSION,
         "docs": "/docs"
     }

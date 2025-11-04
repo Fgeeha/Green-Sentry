@@ -8,7 +8,7 @@ import secrets
 
 class Settings(BaseSettings):
     # Project
-    PROJECT_NAME: str = "Plant Disease Reasoning API"
+    PROJECT_NAME: str = "Green Sentry API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False

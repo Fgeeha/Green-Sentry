@@ -1,4 +1,4 @@
-# 🌱 Plant Disease Reasoning Pipeline
+# 🌱 Green Sentry Pipeline
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.12+-green)

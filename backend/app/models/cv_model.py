@@ -6,10 +6,12 @@ Uses ResNet50 architecture for disease detection
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Union
 import numpy as np
 from pathlib import Path
 from PIL import Image
+
+from app.core.config import settings
 
 
 class PlantDiseaseClassifier:
@@ -63,7 +65,7 @@ class PlantDiseaseClassifier:
         "tomato_mosaic_virus": "Вирусное заболевание с мозаичным рисунком на листьях"
     }
 
-    def __init__(self, model_path: str = None):
+    def __init__(self, model_path: Optional[Union[str, Path]] = None):
         """
         Initialize the classifier
 
@@ -75,10 +77,21 @@ class PlantDiseaseClassifier:
 
         self.model = self._build_model()
 
-        if model_path and Path(model_path).exists():
-            self._load_weights(model_path)
+        weights_path = self._resolve_weights_path(model_path)
+
+        if weights_path and weights_path.exists():
+            self._load_weights(weights_path)
         else:
-            print("⚠️ No custom weights loaded. Using pretrained ImageNet weights.")
+            if weights_path:
+                print(
+                    f"⚠️ Custom weights not found at {weights_path}. "
+                    "Using pretrained ImageNet weights."
+                )
+            else:
+                print(
+                    "⚠️ No custom weights path configured. "
+                    "Using pretrained ImageNet weights."
+                )
 
         # Image preprocessing pipeline
         self.transform = transforms.Compose([
@@ -115,6 +128,19 @@ class PlantDiseaseClassifier:
 
         print(f"✓ Model built with {len(self.DISEASE_CLASSES)} output classes")
         return model
+
+    def _resolve_weights_path(
+            self,
+            model_path: Optional[Union[str, Path]]
+    ) -> Optional[Path]:
+        """Resolve the path to the custom model weights."""
+        if model_path:
+            return Path(model_path)
+
+        if settings.CV_MODEL_PATH:
+            return Path(settings.CV_MODEL_PATH)
+
+        return None
 
     def _load_weights(self, path: str):
         """
