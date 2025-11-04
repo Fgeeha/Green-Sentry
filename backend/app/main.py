@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.api.v1.endpoints import diagnosis, health
+from app.api.v1.endpoints import diagnosis, health, metrics
 
 # Настройка логирования
 setup_logging()
@@ -24,6 +24,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Metrics middleware must be added before routes are processed
+app.add_middleware(metrics.MetricsMiddleware)
+
 # Подключение роутеров
 app.include_router(
     diagnosis.router,
@@ -34,6 +37,12 @@ app.include_router(
     health.router,
     prefix=f"{settings.API_V1_STR}/health",
     tags=["health"]
+)
+
+app.include_router(
+    metrics.router,
+    prefix="/metrics",
+    tags=["metrics"],
 )
 
 @app.get("/")

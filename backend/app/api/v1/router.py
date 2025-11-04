@@ -33,7 +33,6 @@ api_router.include_router(
     tags=["analytics"]
 )
 
-
 api_router.include_router(
     metrics.router,
     prefix="/metrics",
