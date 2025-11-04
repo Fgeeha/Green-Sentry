@@ -12,6 +12,13 @@ class CVResult(BaseModel):
     confidence: float
     top3_predictions: List[Top3Prediction]
 
+class ImageAnalysis(BaseModel):
+    is_plant: bool
+    green_pixel_ratio: float
+    green_threshold: float
+    mean_saturation: float
+    mean_value: float
+
 class ReasoningAnalysis(BaseModel):
     diagnosis_confirmation: Optional[str] = None
     disease_stage: Optional[str] = None
@@ -28,9 +35,10 @@ class ReasoningAnalysis(BaseModel):
 
 class DiagnosisResponse(BaseModel):
     pipeline_version: str
-    cv_result: CVResult
+    cv_result: Optional[CVResult] = None
     reasoning_analysis: Optional[Dict[str, Any]] = None
     report: str
+    image_analysis: Optional[ImageAnalysis] = None
 
 class DiagnosisRequest(BaseModel):
     region: Optional[str] = None

@@ -1,5 +1,5 @@
 import React from 'react'
-import { CheckCircle, AlertTriangle, Clock, Target, Brain } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Clock, Target, Brain, Leaf, Info } from 'lucide-react'
 
 const hasContent = (value) => {
   if (value === null || value === undefined) return false
@@ -63,7 +63,49 @@ const getRiskColor = (risk) => {
 const DiagnosisResult = ({ result }) => {
   if (!result) return null
 
-  const { cv_result, reasoning_analysis, pipeline_version } = result
+  const { cv_result, reasoning_analysis, pipeline_version, image_analysis } = result
+  const isPlantImage = image_analysis?.is_plant !== false
+
+  if (!isPlantImage) {
+    return (
+      <div className="space-y-6 text-sm text-gray-800">
+        <section className="p-4 border rounded-lg bg-red-50 border-red-200 shadow-sm">
+          <h3 className="font-semibold flex items-center gap-2 text-red-700 mb-2">
+            <AlertTriangle size={18} /> На изображении не обнаружено растения
+          </h3>
+          <p className="text-gray-700">
+            Пожалуйста, загрузите фотографию растения крупным планом с минимальным количеством посторонних объектов.
+          </p>
+        </section>
+
+        {image_analysis && (
+          <section className="p-4 border rounded-lg bg-white shadow-sm">
+            <h4 className="font-semibold flex items-center gap-2 mb-2 text-green-700">
+              <Leaf size={16} /> Анализ изображения
+            </h4>
+            <ul className="text-gray-700 space-y-1">
+              <li>
+                <span className="font-medium">Доля растительной области:</span>{' '}
+                {(image_analysis.green_pixel_ratio * 100).toFixed(1)}%
+              </li>
+              <li>
+                <span className="font-medium">Порог обнаружения:</span>{' '}
+                {(image_analysis.green_threshold * 100).toFixed(1)}%
+              </li>
+              <li className="text-gray-500 text-xs">
+                Средняя насыщенность: {(image_analysis.mean_saturation * 100).toFixed(1)}%, яркость: {' '}
+                {(image_analysis.mean_value * 100).toFixed(1)}%
+              </li>
+            </ul>
+            <p className="mt-3 text-gray-600 flex items-start gap-2">
+              <Info size={14} className="mt-0.5" />
+              Повторите попытку при лучшем освещении или измените ракурс, чтобы растение занимало основную часть кадра.
+            </p>
+          </section>
+        )}
+      </div>
+    )
+  }
   const reasoning = reasoning_analysis?.reasoning_analysis
   const structuredReasoning =
     reasoning && typeof reasoning === 'object' && !Array.isArray(reasoning) ? reasoning : null
@@ -155,6 +197,16 @@ const DiagnosisResult = ({ result }) => {
           </div>
         )}
       </section>
+        {image_analysis && (
+        <section className="p-4 border rounded-lg bg-white shadow-sm">
+          <h4 className="font-semibold flex items-center gap-2 mb-2 text-green-700">
+            <Leaf size={16} /> Анализ изображения
+          </h4>
+          <p className="text-gray-700">
+            Доля растительной области: {(image_analysis.green_pixel_ratio * 100).toFixed(1)}%
+          </p>
+        </section>
+      )}
 
       {/* --- Reasoning Analysis --- */}
       {reasoningDataAvailable && (

@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from pathlib import Path
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Dict
 import hashlib
 
 
@@ -42,6 +42,46 @@ class ImageProcessor:
             image_np = self.enhance_image(image_np)
 
         return image_np
+
+    @staticmethod
+    def detect_plant_presence(
+            image: np.ndarray,
+            green_threshold: float = 0.05
+    ) -> Dict[str, float]:
+        """
+        Detect whether the image likely contains a plant based on green pixel ratio.
+
+        Args:
+            image: Input RGB image as numpy array.
+            green_threshold: Minimum ratio of green pixels to consider the image a plant.
+
+        Returns:
+            Dictionary with detection statistics including boolean flag and ratios.
+        """
+        if image.size == 0:
+            raise ValueError("Empty image provided for plant detection")
+
+        # Convert to HSV color space for better color segmentation
+        hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+
+        lower_green = np.array([25, 40, 40])
+        upper_green = np.array([95, 255, 255])
+
+        green_mask = cv2.inRange(hsv, lower_green, upper_green)
+        green_ratio = float(np.count_nonzero(green_mask)) / float(green_mask.size)
+
+        mean_saturation = float(np.mean(hsv[:, :, 1]) / 255.0)
+        mean_value = float(np.mean(hsv[:, :, 2]) / 255.0)
+
+        is_plant = bool(green_ratio >= green_threshold and mean_saturation >= 0.1)
+
+        return {
+            "is_plant": is_plant,
+            "green_pixel_ratio": green_ratio,
+            "green_threshold": green_threshold,
+            "mean_saturation": mean_saturation,
+            "mean_value": mean_value,
+        }
 
     @staticmethod
     def enhance_image(image: np.ndarray) -> np.ndarray:
