@@ -43,7 +43,7 @@
 
 ```bash
 # 1. Клонирование
-git clone https://github.com/yourusername/plant-disease-reasoning.git
+git clone https://github.com/fgeeha/Green-Sentry.git
 cd plant-disease-reasoning
 
 # 2. Конфигурация
